@@ -7,6 +7,7 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import PermissionDenied
 
 from .forms import AttachmentForm, CommentForm, ProfileForm, SignupForm, TicketForm
 from .models import Attachment, Profile, Ticket
@@ -75,6 +76,12 @@ def ticket_detail(request, pk):
         Ticket.objects.select_related('owner').prefetch_related('comments__author', 'attachments'),
         pk=pk,
     )
+
+    if getattr(ticket, 'is_private', False):
+        user_role = request.user.profile.role
+        if ticket.owner != request.user and user_role not in [Profile.ROLE_ADMIN, 'moderator']:
+            raise PermissionDenied("У вас нет прав для просмотра этой приватной заявки.")
+
     comment_form = CommentForm()
     attachment_form = AttachmentForm()
     return render(
@@ -102,6 +109,11 @@ def ticket_create(request):
 @login_required
 def ticket_edit(request, pk):
     ticket = get_object_or_404(Ticket, pk=pk)
+    
+    user_role = request.user.profile.role
+    if ticket.owner != request.user and user_role not in [Profile.ROLE_ADMIN, 'moderator']:
+        raise PermissionDenied("У вас нет прав для редактирования этой заявки.")
+
     if request.method == 'POST':
         form = TicketForm(request.POST, instance=ticket)
         if form.is_valid():
@@ -114,12 +126,19 @@ def ticket_edit(request, pk):
 
 
 @login_required
-@csrf_exempt
 def ticket_delete(request, pk):
     ticket = get_object_or_404(Ticket, pk=pk)
-    ticket.delete()
-    messages.warning(request, 'Заявка удалена')
-    return redirect('ticket_list')
+    
+    user_role = request.user.profile.role
+    if ticket.owner != request.user and user_role not in [Profile.ROLE_ADMIN, 'moderator']:
+        raise PermissionDenied("У вас нет прав для удаления этой заявки.")
+
+    if request.method == 'POST':
+        ticket.delete()
+        messages.warning(request, 'Заявка удалена')
+        return redirect('ticket_list')
+    
+    return render(request, 'tickets/ticket_confirm_delete.html', {'ticket': ticket})
 
 
 @login_required
