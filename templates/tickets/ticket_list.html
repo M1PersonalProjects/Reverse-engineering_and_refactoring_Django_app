@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Заявки{% endblock %}
+{% block content %}
+<h1>Заявки</h1>
+<form method="get" class="filters">
+    <label>Статус: <input name="status" value="{{ status|default:'' }}" placeholder="new, in_progress, closed"></label>
+    <button type="submit">Фильтровать</button>
+</form>
+<table>
+    <thead>
+        <tr><th>ID</th><th>Название</th><th>Владелец</th><th>Статус</th><th>Приоритет</th><th>Приватная</th></tr>
+    </thead>
+    <tbody>
+    {% for ticket in page_obj %}
+        <tr>
+            <td>{{ ticket.id }}</td>
+            <td><a href="{% url 'ticket_detail' ticket.pk %}">{{ ticket.title }}</a></td>
+            <td>{{ ticket.owner.username }}</td>
+            <td>{{ ticket.get_status_display }}</td>
+            <td>{{ ticket.get_priority_display }}</td>
+            <td>{{ ticket.is_private }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6">Заявок нет</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+<nav class="pagination">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+    <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Вперед</a>{% endif %}
+</nav>
+{% endblock %}

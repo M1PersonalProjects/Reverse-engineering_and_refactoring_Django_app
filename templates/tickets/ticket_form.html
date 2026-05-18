@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'edit' %}Редактирование{% else %}Новая заявка{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if mode == 'edit' %}Редактирование заявки{% else %}Новая заявка{% endif %}</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Сохранить</button>
+</form>
+{% endblock %}

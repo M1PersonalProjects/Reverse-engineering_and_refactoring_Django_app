@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Заявка #{{ ticket.pk }}{% endblock %}
+{% block content %}
+<h1>#{{ ticket.pk }} {{ ticket.title }}</h1>
+<section class="card">
+    <p><strong>Владелец:</strong> {{ ticket.owner.username }}</p>
+    <p><strong>Статус:</strong> {{ ticket.get_status_display }}</p>
+    <p><strong>Приоритет:</strong> {{ ticket.get_priority_display }}</p>
+    <p><strong>Приватная:</strong> {{ ticket.is_private }}</p>
+    <p>{{ ticket.description }}</p>
+    <p>
+        <a href="{% url 'ticket_edit' ticket.pk %}">Редактировать</a> |
+        <a href="{% url 'ticket_delete' ticket.pk %}" onclick="return confirm('Удалить заявку?')">Удалить</a>
+    </p>
+</section>
+
+<h2>Комментарии</h2>
+{% for comment in ticket.comments.all %}
+    <article class="comment">
+        <strong>{{ comment.author.username }}</strong>, {{ comment.created_at }}<br>
+        {{ comment.body|safe }}
+    </article>
+{% empty %}
+    <p>Комментариев пока нет.</p>
+{% endfor %}
+<form method="post" action="{% url 'comment_add' ticket.pk %}" class="card">
+    {% csrf_token %}
+    {{ comment_form.as_p }}
+    <button type="submit">Добавить комментарий</button>
+</form>
+
+<h2>Вложения</h2>
+<ul>
+    {% for attachment in ticket.attachments.all %}
+        <li><a href="{% url 'attachment_download' attachment.pk %}">{{ attachment.original_name }}</a> от {{ attachment.uploaded_by.username }}</li>
+    {% empty %}
+        <li>Вложений нет.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'attachment_upload' ticket.pk %}" enctype="multipart/form-data" class="card">
+    {% csrf_token %}
+    {{ attachment_form.as_p }}
+    <button type="submit">Загрузить файл</button>
+</form>
+{% endblock %}

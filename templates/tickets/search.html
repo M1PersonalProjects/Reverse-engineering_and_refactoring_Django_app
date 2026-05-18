@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Поиск{% endblock %}
+{% block content %}
+<h1>Поиск заявок</h1>
+<form method="get" class="card">
+    <label>Запрос: <input name="q" value="{{ q }}"></label>
+    <button type="submit">Искать</button>
+</form>
+{% if q %}
+<h2>Результаты</h2>
+<ul>
+    {% for ticket in results %}
+        <li><a href="{% url 'ticket_detail' ticket.pk %}">#{{ ticket.pk }} {{ ticket.title }}</a> — {{ ticket.owner.username }}</li>
+    {% empty %}
+        <li>Ничего не найдено</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

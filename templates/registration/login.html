@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<h1>Вход</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Войти</button>
+</form>
+<p>Демо-аккаунты после seed: <code>alice</code>, <code>bob</code>, <code>moderator</code>, <code>admin</code>. Пароль: <code>password123</code>.</p>
+<p><a href="{% url 'signup' %}">Создать аккаунт</a></p>
+{% endblock %}

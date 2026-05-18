@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Admin Console{% endblock %}
+{% block content %}
+<h1>Внутренняя административная консоль</h1>
+<section class="card">
+    <h2>Пользователи</h2>
+    <ul>
+    {% for u in users %}
+        <li>{{ u.username }} — {{ u.profile.role }} — заявок: {{ u.tickets.count }}</li>
+    {% endfor %}
+    </ul>
+</section>
+<section class="card">
+    <h2>Все заявки</h2>
+    <ul>
+    {% for t in tickets %}
+        <li>#{{ t.pk }} {{ t.title }} / {{ t.owner.username }} / {{ t.status }}</li>
+    {% endfor %}
+    </ul>
+</section>
+{% endblock %}

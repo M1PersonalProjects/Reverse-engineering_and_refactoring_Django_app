@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Диагностика{% endblock %}
+{% block content %}
+<h1>Диагностика приложения</h1>
+<table>
+{% for key, value in data.items %}
+    <tr><th>{{ key }}</th><td><code>{{ value }}</code></td></tr>
+{% endfor %}
+</table>
+{% endblock %}
