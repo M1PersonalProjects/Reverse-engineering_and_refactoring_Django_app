@@ -8,6 +8,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 
 from .forms import AttachmentForm, CommentForm, ProfileForm, SignupForm, TicketForm
 from .models import Attachment, Profile, Ticket
@@ -62,11 +63,14 @@ def ticket_list(request):
 
 @login_required
 def ticket_search(request):
-    q = request.GET.get('q', '')
+    q = request.GET.get('q', '').strip()
     results = []
+    
     if q:
-        sql = f"SELECT * FROM tickets_ticket WHERE title LIKE '%{q}%' OR description LIKE '%{q}%' ORDER BY created_at DESC"
-        results = list(Ticket.objects.raw(sql))
+        results = Ticket.objects.filter(
+            Q(title__icontains=q) | Q(description__icontains=q)
+        ).order_by('-created_at')
+        
     return render(request, 'tickets/search.html', {'q': q, 'results': results})
 
 
