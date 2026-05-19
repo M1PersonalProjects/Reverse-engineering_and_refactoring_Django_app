@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 from django.core.exceptions import PermissionDenied
 
 from .forms import AttachmentForm, CommentForm, ProfileForm, SignupForm, TicketForm
@@ -160,18 +160,31 @@ def comment_add(request, pk):
 @login_required
 def attachment_upload(request, pk):
     ticket = get_object_or_404(Ticket, pk=pk)
-    if request.method != 'POST':
-        return redirect('ticket_detail', pk=pk)
 
-    form = AttachmentForm(request.POST, request.FILES)
-    if form.is_valid():
-        attachment = form.save(commit=False)
-        attachment.ticket = ticket
-        attachment.uploaded_by = request.user
-        attachment.original_name = request.FILES['file'].name
-        attachment.save()
-        messages.success(request, 'Файл загружен')
-    return redirect('ticket_detail', pk=pk)
+    if (
+        ticket.is_private
+        and ticket.owner != request.user
+        and request.user.profile.role not in ['admin', 'moderator']
+    ):
+        messages.error(request, 'У вас нет прав для добавления файлов к этому тикету.')
+        return redirect('ticket_detail', pk=ticket.pk)
+
+    if request.method == 'POST':
+        form = AttachmentForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            attachment = form.save(commit=False)
+            attachment.ticket = ticket
+            attachment.uploaded_by = request.user
+            attachment.save()
+
+            messages.success(request, 'Файл успешно прикреплен к заявке.')
+            return redirect('ticket_detail', pk=ticket.pk)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Ошибка загрузки: {error}')
+    return redirect('ticket_detail', pk=ticket.pk)
 
 
 @login_required
