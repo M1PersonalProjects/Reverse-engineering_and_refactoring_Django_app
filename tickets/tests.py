@@ -44,6 +44,23 @@ class AccessControlTests(TestCase):
         self.alice.profile.refresh_from_db()
         self.assertEqual(self.alice.profile.role, 'user')
 
+def test_delete_without_csrf_fails(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        
+        csrf_client.login(username='alice', password='password123')
+        
+        ticket_to_delete = Ticket.objects.create(
+            owner=self.alice,
+            title='Alice ticket to delete',
+            description='testing csrf',
+        )
+        
+        response = csrf_client.post(reverse('ticket_edit', args=[ticket_to_delete.pk]))
+        
+        self.assertEqual(response.status_code, 403)
+        
+        self.assertTrue(Ticket.objects.filter(pk=ticket_to_delete.pk).exists())
+
 
 class XssRegressionTests(TestCase):
     def setUp(self):
