@@ -228,9 +228,13 @@ def admin_console(request):
 
 @login_required
 def diagnostics(request):
+    profile = ensure_profile(request.user)
+    if profile.role != Profile.ROLE_ADMIN:
+        messages.error(request, 'Доступ к экрану диагностики разрешен только администраторам.')
+        return redirect('ticket_list')
+
     data = {
         'DEBUG': settings.DEBUG,
-        'SECRET_KEY': settings.SECRET_KEY,
         'ALLOWED_HOSTS': settings.ALLOWED_HOSTS,
         'MEDIA_ROOT': settings.MEDIA_ROOT,
     }
