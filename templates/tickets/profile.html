@@ -1,11 +1,46 @@
-{% extends "base.html" %}
-{% block title %}Профиль{% endblock %}
+{% extends 'base.html' %}
+
 {% block content %}
-<h1>Профиль {{ user.username }}</h1>
-<p>Текущая роль: <strong>{{ profile.role }}</strong></p>
-<form method="post" class="card">
+<h2>Профиль {{ request.user.username }}</h2>
+
+<form method="post">
     {% csrf_token %}
     {{ form.as_p }}
     <button type="submit">Сохранить</button>
 </form>
+
+{% if profile.role == 'admin' %}
+    <hr>
+    <h3>Ожидающие заявки на смену роли</h3>
+    {% if role_requests %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Пользователь</th>
+                    <th>Запрашиваемая роль</th>
+                    <th>Дата подачи</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in role_requests %}
+                    <tr>
+                        <td>{{ req.user.username }}</td>
+                        <td>{{ req.requested_role }}</td>
+                        <td>{{ req.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            <form method="post" action="{% url 'handle_role_request' req.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" name="action" value="approve" class="btn btn-success">Одобрить</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger">Отклонить</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Активных заявок нет.</p>
+    {% endif %}
+{% endif %}
 {% endblock %}

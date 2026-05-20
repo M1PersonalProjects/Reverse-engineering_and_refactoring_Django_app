@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
 from .forms import AttachmentForm, CommentForm, ProfileForm, SignupForm, TicketForm
-from .models import Attachment, Profile, Ticket
+from .models import Attachment, Profile, Ticket, RoleRequest
 
 
 def ensure_profile(user):
@@ -203,15 +203,40 @@ def attachment_download(request, attachment_id):
 @login_required
 def profile_edit(request):
     profile = ensure_profile(request.user)
+    
+    role_requests = []
+    if profile.role == Profile.ROLE_ADMIN:
+        role_requests = RoleRequest.objects.filter(status=RoleRequest.STATUS_PENDING).select_related('user')
+
     if request.method == 'POST':
         form = ProfileForm(request.POST, instance=profile)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Профиль обновлен')
+            
+            new_role = form.cleaned_data.get('requested_role')
+            if new_role and new_role != profile.role:
+                already_exists = RoleRequest.objects.filter(
+                    user=request.user, 
+                    requested_role=new_role, 
+                    status=RoleRequest.STATUS_PENDING
+                ).exists()
+                
+                if not already_exists:
+                    RoleRequest.objects.create(user=request.user, requested_role=new_role)
+                    messages.info(request, 'Заявка на смену роли отправлена администратору.')
+                else:
+                    messages.warning(request, 'Вы уже отправили заявку на эту роль.')
+            
+            messages.success(request, 'Профиль успешно обновлен.')
             return redirect('profile_edit')
     else:
         form = ProfileForm(instance=profile)
-    return render(request, 'tickets/profile.html', {'form': form, 'profile': profile})
+        
+    return render(request, 'tickets/profile.html', {
+        'form': form, 
+        'profile': profile,
+        'role_requests': role_requests
+    })
 
 
 @login_required
@@ -244,3 +269,31 @@ def diagnostics(request):
 @login_required
 def go_next(request):
     return redirect(request.GET.get('next', '/tickets/'))
+
+@login_required
+def handle_role_request(request, request_id):
+    profile = ensure_profile(request.user)
+    if profile.role != Profile.ROLE_ADMIN:
+        messages.error(request, 'Доступ запрещен.')
+        return redirect('ticket_list')
+
+    role_request = get_object_or_404(RoleRequest, pk=request_id)
+    action = request.POST.get('action')
+
+    if action == 'approve':
+        role_request.status = RoleRequest.STATUS_APPROVED
+        role_request.save()
+        
+        # Автоматически меняем роль в профиле пользователя
+        user_profile = ensure_profile(role_request.user)
+        user_profile.role = role_request.requested_role
+        user_profile.save()
+        
+        messages.success(request, f'Заявка пользователя {role_request.user.username} одобрена. Роль изменена.')
+        
+    elif action == 'reject':
+        role_request.status = RoleRequest.STATUS_REJECTED
+        role_request.save()
+        messages.warning(request, f'Заявка пользователя {role_request.user.username} отклонена.')
+
+    return redirect('profile_edit')

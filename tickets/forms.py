@@ -56,7 +56,27 @@ class AttachmentForm(forms.ModelForm):
         return uploaded_file
     
     
+
 class ProfileForm(forms.ModelForm):
+    requested_role = forms.ChoiceField(
+        choices=Profile.ROLE_CHOICES, 
+        label="Запросить новую роль", 
+        required=False
+    )
+
     class Meta:
         model = Profile
-        fields = ['phone', 'role']
+        fields = ['phone']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.fields['current_role'] = forms.CharField(
+            initial=self.instance.get_role_display(),
+            label="Текущая роль",
+            disabled=True,
+            required=False
+        )
+        
+        if self.instance.role == Profile.ROLE_ADMIN:
+            del self.fields['requested_role']

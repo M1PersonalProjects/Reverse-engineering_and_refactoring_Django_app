@@ -17,4 +17,6 @@ urlpatterns = [
     path('admin-console/', views.admin_console, name='admin_console'),
     path('diagnostics/', views.diagnostics, name='diagnostics'),
     path('go/', views.go_next, name='go_next'),
+    path('profile/', views.profile_edit, name='profile_edit'),
+    path('profile/role-request/<int:request_id>/', views.handle_role_request, name='handle_role_request'),
 ]
