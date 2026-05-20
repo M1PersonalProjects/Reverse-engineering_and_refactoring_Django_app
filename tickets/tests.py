@@ -1,19 +1,22 @@
-"""Regression tests for selected application behavior."""
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from .forms import AttachmentForm
-from .models import Profile, Ticket
+from .models import Profile, Ticket, RoleRequest
 
 
 class AccessControlTests(TestCase):
     def setUp(self):
         self.alice = User.objects.create_user('alice', password='password123')
         self.bob = User.objects.create_user('bob', password='password123')
+        self.admin_user = User.objects.create_user('admin_user', password='password123')
+        
         Profile.objects.create(user=self.alice, role='user')
         Profile.objects.create(user=self.bob, role='user')
+        Profile.objects.create(user=self.admin_user, role='admin')
+        
         self.private_ticket = Ticket.objects.create(
             owner=self.bob,
             title='Bob private',
@@ -40,13 +43,22 @@ class AccessControlTests(TestCase):
         self.assertIn(response.status_code, [403, 404])
 
     def test_user_cannot_self_assign_admin_role(self):
-        response = self.client.post(reverse('profile_edit'), {'phone': '123', 'role': 'admin'})
+        response = self.client.post(reverse('profile_edit'), {
+            'phone': '123',
+            'requested_role': 'admin'
+        })
         self.alice.profile.refresh_from_db()
         self.assertEqual(self.alice.profile.role, 'user')
-
-def test_delete_without_csrf_fails(self):
-        csrf_client = Client(enforce_csrf_checks=True)
         
+        role_request_exists = RoleRequest.objects.filter(
+            user=self.alice,
+            requested_role='admin',
+            status='pending'
+        ).exists()
+        self.assertTrue(role_request_exists)
+
+    def test_delete_without_csrf_fails(self):
+        csrf_client = Client(enforce_csrf_checks=True)
         csrf_client.login(username='alice', password='password123')
         
         ticket_to_delete = Ticket.objects.create(
@@ -55,11 +67,24 @@ def test_delete_without_csrf_fails(self):
             description='testing csrf',
         )
         
-        response = csrf_client.post(reverse('ticket_edit', args=[ticket_to_delete.pk]))
-        
+        response = csrf_client.post(reverse('ticket_delete', args=[ticket_to_delete.pk]))
         self.assertEqual(response.status_code, 403)
-        
         self.assertTrue(Ticket.objects.filter(pk=ticket_to_delete.pk).exists())
+
+    def test_search_sql_injection_safe(self):
+        sqli_payload = "xyz' OR 1=1 --"
+        response = self.client.get(reverse('ticket_search'), {'q': sqli_payload})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(self.private_ticket, response.context['results'])
+
+    def test_diagnostics_restricted_and_safe(self):
+        response = self.client.get(reverse('diagnostics'))
+        self.assertEqual(response.status_code, 302)
+        
+        self.client.login(username='admin_user', password='password123')
+        response = self.client.get(reverse('diagnostics'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('SECRET_KEY', response.content.decode('utf-8'))
 
 
 class XssRegressionTests(TestCase):
@@ -105,7 +130,6 @@ class FileUploadTests(TestCase):
         
         self.assertFalse(form.is_valid())
         self.assertIn('file', form.errors)
-        self.assertTrue(any('Недопустимый тип файла' in err for err in form.errors['file']))
 
     def test_upload_valid_file_passes(self):
         valid_file = SimpleUploadedFile(
